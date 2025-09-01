@@ -1,0 +1,66 @@
+name: Deploy EKS via Terraform
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Terraform action'
+        required: true
+        default: 'apply'
+        type: choice
+        options:
+          - apply
+          - destroy
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  BUCKET_NAME: ansible-jenkins-dami
+  TF_KEY: eks/terraform.tfstate
+
+jobs:
+  terraform:
+    name: Terraform Plan & Apply/Destroy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::816069135560:role/githubactionsawsaccessrole
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.4
+
+      - name: Terraform Init
+        run: |
+          terraform init -upgrade \
+            -backend-config="bucket=${{ env.BUCKET_NAME }}" \
+            -backend-config="key=${{ env.TF_KEY }}" \
+            -backend-config="region=${{ env.AWS_REGION }}"
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply or Destroy
+        run: |
+          if [ "${{ github.event.inputs.action }}" == "apply" ]; then
+            terraform apply -auto-approve tfplan
+          else
+            terraform destroy -auto-approve
+          fi
+
+      - name: Output Cluster Details
+        run: terraform output
