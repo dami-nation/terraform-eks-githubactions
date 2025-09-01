@@ -1,6 +1,8 @@
 name: Deploy EKS via Terraform
 
 on:
+  push:
+    branches: [ main ]
   workflow_dispatch:
     inputs:
       action:
@@ -18,7 +20,7 @@ permissions:
 
 env:
   AWS_REGION: us-east-1
-  BUCKET_NAME: ansible-jenkins-dami
+  BUCKET_NAME: terraform-reaclcoud-eks-state
   TF_KEY: eks/terraform.tfstate
 
 jobs:
@@ -54,13 +56,13 @@ jobs:
       - name: Terraform Plan
         run: terraform plan -out=tfplan
 
-      - name: Terraform Apply or Destroy
-        run: |
-          if [ "${{ github.event.inputs.action }}" == "apply" ]; then
-            terraform apply -auto-approve tfplan
-          else
-            terraform destroy -auto-approve
-          fi
+      - name: Terraform Apply (on push or manual)
+        if: github.event_name == 'push' || github.event.inputs.action == 'apply'
+        run: terraform apply -auto-approve tfplan
+
+      - name: Terraform Destroy (manual only)
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
+        run: terraform destroy -auto-approve
 
       - name: Output Cluster Details
         run: terraform output
