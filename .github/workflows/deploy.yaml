@@ -20,7 +20,7 @@ permissions:
 
 env:
   AWS_REGION: us-east-1
-  BUCKET_NAME: terraform-reaclcoud-eks-state
+  BUCKET_NAME: ansible-jenkins-dami
   TF_KEY: eks/terraform.tfstate
 
 jobs:
